@@ -121,39 +121,74 @@ plot_map <- ggplot() +
 plot_map
 # line chart:  counties with most positive tests 
 # as of 2020-07-15, at least 300 cases
-more_cases <- all_data_today_added %>%
-  filter(County == 'Washington' | County == 'Multnomah' |
-           County == 'Marion' | County == 'Clackamas' | 
-           County == 'Lincoln' | County == 'Lane' | 
-           County == 'Umatilla' | County == 'Malheur' |
-           County == 'Union') %>%
-  mutate(n = `Positive†`) %>%
-  select(County, Snapshot, n)
-less_cases <- all_data_today_added %>%
-  filter(County != 'Washington' & County != 'Multnomah' &
-           County != 'Marion' & County != 'Clackamas' &
-           County != 'Lincoln' & County != 'Lane' & 
-           County != 'Umatilla' & County != 'Malheur' &
-           County != 'Union') %>%
-  select(Snapshot, `Positive†`) %>%
-  mutate(County = 'The Other 27 Counties') %>%
-  group_by(County,Snapshot) %>%
-  tally(sum(`Positive†`)) %>%
-  arrange(desc(n))
-cases <- bind_rows(more_cases,less_cases)
 
-plot_line_chart <- ggplot(data = cases, aes(x = Snapshot, y = n, 
-                                    color = County,
-                                    label = County))+
-  geom_line(size = 2) +
-  xlab("Date") +
-  ggtitle("Oregon COVID-19 Positive Tests by County") +
-  theme_bw() + 
-  scale_color_manual(values = c('#a6cee3','#1f78b4','#e78ac3',
-                                '#33a02c','#7570b3','#7fcdbb',
-                                '#de2d26','#636363','#bdbdbd',
-                                '#fdbb84'))
-plot_line_chart
+plot_line_chart <- function(outcome){
+  
+  plot_title <- paste("Oregon COVID-19", outcome, "by County")
+  
+  if(grepl("positive", tolower(outcome), fixed=TRUE)){
+    argument <- "POSITIVE"
+  }
+  else if(grepl("death", tolower(outcome), fixed=TRUE)){
+    argument <- "DEATHS"
+  }
+  else{print("Input an outcome with 'positive' or 'deaths'")
+    return ()
+  }
+  
+  cases <- transform_for_viz(n_input = argument)
+  
+  line_chart <- ggplot(data = cases, aes(x = Snapshot, y = n, 
+                                         color = County,
+                                         label = County))+
+    geom_line(size = 2) +
+    xlab("Date") +
+    ggtitle(plot_title) +
+    theme_bw() + 
+    scale_color_manual(values = c('#a6cee3','#1f78b4','#e78ac3',
+                                  '#33a02c','#7570b3','#7fcdbb',
+                                  '#de2d26','#636363','#bdbdbd',
+                                  '#fdbb84'))
+  line_chart
+  
+}
+
+transform_for_viz <- function(n_input){
+  
+  #if (!(n_input %in% c('`Positive†`', '`Deaths*`'))){
+  #  print('n must be number of positive cases or deaths')
+  #  return ()
+  #}
+  
+  cleaned_names <- all_data_today_added %>% rename(POSITIVE=`Positive†`, DEATHS=`Deaths*`)
+    
+  more_cases <- cleaned_names %>%
+    filter(County == 'Washington' | County == 'Multnomah' |
+             County == 'Marion' | County == 'Clackamas' | 
+             County == 'Lincoln' | County == 'Lane' | 
+             County == 'Umatilla' | County == 'Malheur' |
+             County == 'Union') %>%
+    rename(n = n_input) %>%
+    select(County, Snapshot, n)
+  
+  less_cases <- cleaned_names %>%
+    filter(County != 'Washington' & County != 'Multnomah' &
+             County != 'Marion' & County != 'Clackamas' &
+             County != 'Lincoln' & County != 'Lane' & 
+             County != 'Umatilla' & County != 'Malheur' &
+             County != 'Union') %>%
+    select(Snapshot, n_input) %>%
+    mutate(County = 'The Other 27 Counties') %>%
+    rename(n = n_input) %>%
+    group_by(County,Snapshot) %>%
+    tally(sum(n)) %>%
+    arrange(desc(n))
+  
+  cases <- bind_rows(more_cases,less_cases)
+  
+  return (cases)}
+
+
 all_counties_chart <- ggplot(data = all_data_today_added, aes(x = Snapshot, y = `Positive†`, 
                                             color = County,
                                             label = County))+
